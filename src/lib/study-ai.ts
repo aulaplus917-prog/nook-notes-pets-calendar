@@ -95,19 +95,43 @@ export function localNotesMarkdown(topic: string, text: string) {
 
 export type StudyAiResult = { markdown?: string; map?: AiMindMap };
 
+export type StudyAiFailureCode = "credits" | "rate_limit" | "aborted" | "unavailable";
+
+/**
+ * Traduce un fallo del Gateway de IA a una respuesta clara. Nunca devuelve 5xx:
+ * el fallo es esperado (créditos, límite, cancelación) y la app sigue con el esquema local.
+ */
+export function studyAiFailure(upstreamStatus: number | undefined, aborted: boolean): { status: number; code: StudyAiFailureCode; message: string } {
+  if (aborted) return { status: 408, code: "aborted", message: "La petición se canceló." };
+  if (upstreamStatus === 402)
+    return { status: 402, code: "credits", message: "La IA se quedó sin créditos por ahora." };
+  if (upstreamStatus === 429)
+    return { status: 429, code: "rate_limit", message: "La IA está recibiendo muchas peticiones. Inténtalo en un momento." };
+  return { status: 424, code: "unavailable", message: "La IA no respondió ahora." };
+}
+
+export class StudyAiError extends Error {
+  constructor(public code: StudyAiFailureCode | "invalid", message: string) {
+    super(message);
+  }
+}
+
 export async function requestStudyAi(kind: AiKind, notebook: string, notes: string): Promise<StudyAiResult> {
   const res = await fetch("/api/public/study-ai", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ kind, notebook, notes }),
   });
-  if (!res.ok) throw new Error(`study-ai ${res.status}`);
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { code?: StudyAiFailureCode; error?: string };
+    throw new StudyAiError(err.code ?? "unavailable", err.error ?? `study-ai ${res.status}`);
+  }
   const data = (await res.json()) as { markdown?: unknown; map?: unknown };
   if (kind === "mindmap") {
     const map = sanitizeMindMap(data.map, notebook);
-    if (!map) throw new Error("mapa inválido");
+    if (!map) throw new StudyAiError("invalid", "mapa inválido");
     return { map };
   }
-  if (typeof data.markdown !== "string" || data.markdown.trim().length < 40) throw new Error("respuesta vacía");
+  if (typeof data.markdown !== "string" || data.markdown.trim().length < 40) throw new StudyAiError("invalid", "respuesta vacía");
   return { markdown: data.markdown.trim() };
 }

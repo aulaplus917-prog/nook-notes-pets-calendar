@@ -2,6 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { cleanImportedText } from "@/lib/clean-text";
+import { studyAiFailure } from "@/lib/study-ai";
 import {
   createLovableAiGatewayRunIdFetch,
   getLovableAiGatewayRunId,
@@ -98,7 +99,7 @@ export async function handleStudyAiRequest(request: Request, body: StudyAiReques
     headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
     fetch: runIdFetch.fetch,
   });
-  const providerOptions = { openai: { store: false, reasoningEffort: "low" } } as const;
+  const providerOptions = { openai: { store: false } } as const;
 
   try {
     if (body.kind === "mindmap") {
@@ -121,7 +122,19 @@ export async function handleStudyAiRequest(request: Request, body: StudyAiReques
     });
     return withLovableAiGatewayRunIdHeader(json({ markdown: result.text }), runIdFetch);
   } catch (error) {
-    console.error("study-ai error", error);
-    return json({ error: "No se pudo generar el contenido ahora." }, 502);
+    const failure = studyAiFailure(upstreamStatus(error), request.signal.aborted);
+    console.error(`study-ai error (${failure.code})`, error);
+    return json({ error: failure.message, code: failure.code }, failure.status);
   }
+}
+
+/** Status HTTP del Gateway, incluso cuando el SDK lo envuelve en un error de reintentos. */
+function upstreamStatus(error: unknown): number | undefined {
+  let e: unknown = error;
+  for (let i = 0; i < 4 && e && typeof e === "object"; i++) {
+    const x = e as { statusCode?: unknown; lastError?: unknown; cause?: unknown };
+    if (typeof x.statusCode === "number") return x.statusCode;
+    e = x.lastError ?? x.cause;
+  }
+  return undefined;
 }

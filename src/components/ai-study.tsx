@@ -12,6 +12,7 @@ import {
   localNotesMarkdown,
   localSummaryMarkdown,
   requestStudyAi,
+  StudyAiError,
   type AiKind,
   type AiMindMap,
 } from "@/lib/study-ai";
@@ -42,8 +43,11 @@ function useStudyAi<K extends AiKind>(n: Notebook, update: ((n: Notebook) => voi
       const cur = latest.current;
       const entry = kind === "mindmap" ? { key, data: r.map! } : { key, markdown: r.markdown! };
       update?.({ ...cur, studio: { ...cur.studio, ai: { ...cur.studio?.ai, [kind]: entry } } });
-    } catch {
+    } catch (error) {
       setFailed(true);
+      const code = error instanceof StudyAiError ? error.code : "unavailable";
+      if (code === "credits") toast.warning("La IA de AulaPlus se quedó sin créditos por ahora. Te muestro un esquema local con tus apuntes.", { id: "ai-credits" });
+      else if (code === "rate_limit") toast.info("La IA está ocupada. Espera un momento y pulsa «Regenerar con IA».", { id: "ai-busy" });
     } finally {
       setLoading(false);
     }
