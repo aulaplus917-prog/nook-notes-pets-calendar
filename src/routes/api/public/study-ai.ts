@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { handleStudyAiRequest, type StudyAiRequestBody } from "@/lib/ai/study-ai.server";
 
-const KINDS = new Set(["mindmap", "summary", "notes"]);
+const KINDS = new Set(["mindmap", "summary", "notes", "flashcards"]);
 
 export const Route = createFileRoute("/api/public/study-ai")({
   server: {

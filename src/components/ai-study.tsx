@@ -15,11 +15,12 @@ import {
   StudyAiError,
   type AiKind,
   type AiMindMap,
+  type AiFlashcard,
 } from "@/lib/study-ai";
 
-type Value<K extends AiKind> = K extends "mindmap" ? AiMindMap : string;
+type Value<K extends AiKind> = K extends "mindmap" ? AiMindMap : K extends "flashcards" ? AiFlashcard[] : string;
 
-function useStudyAi<K extends AiKind>(n: Notebook, update: ((n: Notebook) => void) | undefined, kind: K, auto: boolean) {
+export function useStudyAi<K extends AiKind>(n: Notebook, update: ((n: Notebook) => void) | undefined, kind: K, auto: boolean) {
   const latest = useRef(n);
   latest.current = n;
   const key = contentKey(n.name, n.notes);
@@ -41,8 +42,10 @@ function useStudyAi<K extends AiKind>(n: Notebook, update: ((n: Notebook) => voi
     try {
       const r = await requestStudyAi(kind, n.name, n.notes);
       const cur = latest.current;
-      const entry = kind === "mindmap" ? { key, data: r.map! } : { key, markdown: r.markdown! };
-      update?.({ ...cur, studio: { ...cur.studio, ai: { ...cur.studio?.ai, [kind]: entry } } });
+      const entry = kind === "mindmap" ? { key, data: r.map! } : kind === "flashcards" ? { key, data: r.cards! } : { key, markdown: r.markdown! };
+      // Un mazo nuevo empieza de cero: el progreso anterior apuntaba a otras tarjetas.
+      const progress = kind === "flashcards" ? { known: [], review: [], card: 0 } : {};
+      update?.({ ...cur, studio: { ...cur.studio, ...progress, ai: { ...cur.studio?.ai, [kind]: entry } } });
     } catch (error) {
       setFailed(true);
       const code = error instanceof StudyAiError ? error.code : "unavailable";
@@ -65,7 +68,7 @@ function useStudyAi<K extends AiKind>(n: Notebook, update: ((n: Notebook) => voi
   return { aiValue: aiValue as Value<K> | undefined, fresh, loading, failed, generate };
 }
 
-function AiStatus({ fromAi, fresh, loading, failed, onGenerate, label }: { fromAi: boolean; fresh: boolean; loading: boolean; failed: boolean; onGenerate: () => void; label: string }) {
+export function AiStatus({ fromAi, fresh, loading, failed, onGenerate, label }: { fromAi: boolean; fresh: boolean; loading: boolean; failed: boolean; onGenerate: () => void; label: string }) {
   return (
     <div className="ai-status">
       {fromAi ? (

@@ -1650,3 +1650,7 @@ select {
 .notebook-actions { display: flex; align-items: center; gap: 4px; }
 .delete-notebook { width: 28px; height: 28px; color: var(--destructive); }
 .delete-notebook:hover { background: color-mix(in oklab, var(--destructive) 12%, transparent); color: var(--destructive); }
+.flash-type { position: absolute; top: 18px; left: 18px; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 99px; background: color-mix(in oklab, var(--card) 75%, transparent); color: var(--foreground); border: 1px solid var(--border); }
+.flash-hint { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; font-weight: 700; padding: 6px 12px; border-radius: 12px; background: color-mix(in oklab, var(--card) 70%, transparent); }
+.flip-face strong.flash-answer { font-size: 20px; }
+@media (max-width: 640px) { .flip-face strong.flash-answer { font-size: 16px; } }

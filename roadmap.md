@@ -37,3 +37,4 @@
 - [ ] Probar el inicio de sesión con Google y la sincronización con una cuenta real (necesita a la usuaria)
 - [x] Botón de papelera en cada tarjeta de "Mis cuadernos" con confirmación (borra también el chat del cuaderno)
 - [x] Mapa mental, Resúmenes y Apuntes asistidos generados por IA con esquemas estructurados (respaldo local sin conexión)
+- [x] Flashcards generadas por IA: mazo variado (concepto, causa, proceso, comparación, aplicación, completar, verdadero/falso) con pistas; mazo local mixto sin conexión

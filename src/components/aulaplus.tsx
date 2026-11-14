@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { loadState, saveState, loadAllChats, replaceAllChats, deleteChat, type StoredChat } from "@/lib/local-store";
 import { AiSummaryView, AiNotesAssist } from "./ai-study";
+import { AiFlashcards } from "./ai-flashcards";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1026,33 +1027,8 @@ function NotebookView({
   onWalletChange: (w: Wallet) => void;
 }) {
   const [tab, setTab] = useState("chat");
-  const card = n.studio?.card ?? 0;
-  const [flipped, setFlipped] = useState(false);
   const [note, setNote] = useState(n.notes);
   const [task, setTask] = useState("");
-  const sentences = n.notes.split(/[.!?]\s*/).filter((s) => s.trim().length > 3);
-  const cards = sentences.length
-    ? sentences.slice(0, 40).map((s, i) => ({
-        question: `¿Qué recuerdas de la idea ${i + 1} en ${n.name}?`,
-        answer: s,
-      }))
-    : [
-        {
-          question: `¿Qué te gustaría aprender en ${n.name}?`,
-          answer: "Añade tus apuntes y crea tu primera idea de estudio.",
-        },
-      ];
-  const known = n.studio?.known ?? [];
-  const review = n.studio?.review ?? [];
-  const cur = card % cards.length;
-  const goCard = (i: number) => { setFlipped(false); update({ ...n, studio: { ...n.studio, card: (i + cards.length) % cards.length } }); };
-  const mark = (kind: "known" | "review") => {
-    const k = known.filter((x) => x !== cur), r = review.filter((x) => x !== cur);
-    (kind === "known" ? k : r).push(cur);
-    setFlipped(false);
-    update({ ...n, studio: { ...n.studio, known: k, review: r, card: (cur + 1) % cards.length } });
-    toast.success(kind === "known" ? "¡Genial! Tarjeta dominada 💚" : "La repasaremos pronto 📌");
-  };
   return (
     <>
       <Button variant="ghost" className="px-0 text-muted-foreground mb-4" onClick={back}>
@@ -1105,27 +1081,7 @@ function NotebookView({
           ) : tab === "sources" ? (
             <SourcesPanel notebook={n} update={update} />
           ) : tab === "flashcards" ? (
-            <div className="flash-studio">
-              <div className="flash-meta">
-                <span className="pill lilac">Tarjeta {(card % cards.length) + 1} de {cards.length}</span>
-                <span className="pill mint"><Check size={14} />Lo sé: {known.length}</span>
-                <span className="pill peach">Repasar: {review.length}</span>
-              </div>
-              <div className="flash-progress" aria-label="Progreso"><span style={{ width: `${Math.round(((known.length + review.length) / cards.length) * 100)}%` }} /></div>
-              <button type="button" className={`flip-card ${flipped ? "flipped" : ""}`} onClick={() => setFlipped((v) => !v)} aria-label="Voltear tarjeta">
-                <span className="flip-inner">
-                  <span className="flip-face front"><small>PREGUNTA</small><strong>{cards[card % cards.length]?.question}</strong><em><RotateCcw size={14} /> Toca para voltear</em></span>
-                  <span className="flip-face back"><small>RESPUESTA</small><strong>{cards[card % cards.length]?.answer}</strong><em><RotateCcw size={14} /> Toca para volver</em></span>
-                </span>
-              </button>
-              <div className="flash-nav">
-                <Button variant="outline" size="icon" aria-label="Tarjeta anterior" onClick={() => goCard(card - 1)}><ChevronLeft /></Button>
-                <Button variant="outline" className="flash-review" onClick={() => mark("review")}>Necesita repaso</Button>
-                <Button className="flash-known" onClick={() => mark("known")}><Check />Lo sé</Button>
-                <Button variant="outline" size="icon" aria-label="Siguiente tarjeta" onClick={() => goCard(card + 1)}><ChevronRight /></Button>
-              </div>
-              {known.length + review.length > 0 && <Button variant="ghost" size="sm" className="justify-self-center" onClick={() => update({ ...n, studio: { ...n.studio, known: [], review: [], card: 0 } })}><RotateCcw />Reiniciar mazo</Button>}
-            </div>
+            <AiFlashcards key={n.id} notebook={n} update={update} />
           ) : tab === "summary" ? (
             <div className="study-text">
               <h2>Las ideas más importantes</h2>

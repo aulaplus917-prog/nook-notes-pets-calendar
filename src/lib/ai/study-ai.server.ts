@@ -12,7 +12,7 @@ import {
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1";
 const MODEL = "openai/gpt-6-astra";
 
-export type StudyAiKind = "mindmap" | "summary" | "notes";
+export type StudyAiKind = "mindmap" | "summary" | "notes" | "flashcards";
 export type StudyAiRequestBody = { kind: StudyAiKind; notebook: string; notes: string };
 
 const BASE = `Eres un docente experto y diseñador pedagógico de AulaPlus para estudiantes de secundaria y universidad.
@@ -64,6 +64,22 @@ Tarea: convierte el material en APUNTES ASISTIDOS bien organizados en Markdown:
 ## Preguntas de autoestudio
 (3 preguntas numeradas)
 No añadas texto fuera de esta estructura.`,
+  flashcards: `${BASE}
+
+Tarea: crea un MAZO DE FLASHCARDS de estudio activo (entre 12 y 16 tarjetas) sobre el contenido del cuaderno.
+- Cada tarjeta evalúa UNA idea concreta del material; cubre todo el tema sin repetir ideas entre tarjetas.
+- Varía el tipo de tarjeta ("type") y mezcla el orden; usa al menos 5 tipos distintos:
+  - "concepto": pide definir o explicar un término clave.
+  - "causa": pregunta por qué ocurre algo o qué consecuencia tiene.
+  - "proceso": pide ordenar o describir etapas o pasos.
+  - "comparacion": diferencias o semejanzas entre dos ideas.
+  - "aplicacion": un caso o situación concreta donde aplicar lo aprendido.
+  - "completar": una afirmación propia con un hueco "_____" para el término clave.
+  - "verdadero_falso": una afirmación propia (a veces falsa) que el estudiante debe juzgar; la respuesta empieza por "Verdadero." o "Falso." y lo justifica.
+- "question": pregunta clara y específica del tema (máximo 30 palabras). Prohibido preguntas genéricas como "¿Qué recuerdas de…?".
+- "answer": respuesta precisa y propia en 1–3 frases (máximo 45 palabras), sin copiar el material.
+- "hint": una pista breve que ayude a recordar sin revelar la respuesta (máximo 14 palabras).
+- Ajusta la dificultad de forma progresiva: primero recordar, luego comprender y al final aplicar.`,
 };
 
 const mindMapSchema = z.object({
@@ -77,6 +93,19 @@ const mindMapSchema = z.object({
       }),
     )
     .describe("4 a 6 ramas principales"),
+});
+
+const flashcardsSchema = z.object({
+  cards: z
+    .array(
+      z.object({
+        type: z.enum(["concepto", "causa", "proceso", "comparacion", "aplicacion", "completar", "verdadero_falso"]),
+        question: z.string().describe("Pregunta específica del tema"),
+        answer: z.string().describe("Respuesta precisa en 1 a 3 frases"),
+        hint: z.string().describe("Pista breve que no revela la respuesta"),
+      }),
+    )
+    .describe("12 a 16 tarjetas variadas"),
 });
 
 const json = (data: unknown, status = 200) =>
@@ -112,6 +141,17 @@ export async function handleStudyAiRequest(request: Request, body: StudyAiReques
         providerOptions,
       });
       return withLovableAiGatewayRunIdHeader(json({ map: result.output }), runIdFetch);
+    }
+    if (body.kind === "flashcards") {
+      const result = await generateText({
+        model: provider.responses(MODEL),
+        instructions: PROMPTS.flashcards,
+        prompt,
+        output: Output.object({ schema: flashcardsSchema }),
+        abortSignal: request.signal,
+        providerOptions,
+      });
+      return withLovableAiGatewayRunIdHeader(json({ cards: result.output.cards }), runIdFetch);
     }
     const result = await generateText({
       model: provider.responses(MODEL),

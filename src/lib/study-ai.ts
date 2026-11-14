@@ -2,10 +2,23 @@
 // La IA genera el contenido cuando hay internet; sin conexión se arma un esquema local.
 import { keyTerms, sentences } from "@/lib/tutor";
 
-export type AiKind = "mindmap" | "summary" | "notes";
+export type AiKind = "mindmap" | "summary" | "notes" | "flashcards";
 export type AiMindMap = { center: string; branches: { label: string; summary: string; points: string[] }[] };
+export const FLASHCARD_TYPES = ["concepto", "causa", "proceso", "comparacion", "aplicacion", "completar", "verdadero_falso"] as const;
+export type FlashcardType = (typeof FLASHCARD_TYPES)[number];
+export type AiFlashcard = { type: FlashcardType; question: string; answer: string; hint?: string };
+export const FLASHCARD_LABELS: Record<FlashcardType, string> = {
+  concepto: "Concepto",
+  causa: "Causa y efecto",
+  proceso: "Proceso",
+  comparacion: "Comparación",
+  aplicacion: "Aplicación",
+  completar: "Completa",
+  verdadero_falso: "¿Verdadero o falso?",
+};
 export type AiStudio = {
   mindmap?: { key: string; data: AiMindMap };
+  flashcards?: { key: string; data: AiFlashcard[] };
   summary?: { key: string; markdown: string };
   notes?: { key: string; markdown: string };
 };
@@ -93,7 +106,61 @@ export function localNotesMarkdown(topic: string, text: string) {
   ].join("\n");
 }
 
-export type StudyAiResult = { markdown?: string; map?: AiMindMap };
+/** Valida y limpia el mazo que devuelve la IA: sin vacías, sin preguntas repetidas, máximo 20. */
+export function sanitizeFlashcards(raw: unknown): AiFlashcard[] | null {
+  const list = Array.isArray(raw) ? raw : raw && typeof raw === "object" && Array.isArray((raw as { cards?: unknown }).cards) ? (raw as { cards: unknown[] }).cards : null;
+  if (!list) return null;
+  const seen = new Set<string>();
+  const cards: AiFlashcard[] = [];
+  for (const item of list) {
+    const x = (item ?? {}) as { type?: unknown; question?: unknown; answer?: unknown; hint?: unknown };
+    if (typeof x.question !== "string" || typeof x.answer !== "string") continue;
+    const question = clip(x.question, 240);
+    const answer = clip(x.answer, 420);
+    if (question.length < 6 || !answer) continue;
+    const id = question.toLowerCase();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const type = (FLASHCARD_TYPES as readonly string[]).includes(x.type as string) ? (x.type as FlashcardType) : "concepto";
+    const hint = typeof x.hint === "string" && x.hint.trim() ? clip(x.hint, 160) : undefined;
+    cards.push(hint ? { type, question, answer, hint } : { type, question, answer });
+    if (cards.length >= 20) break;
+  }
+  return cards.length >= 3 ? cards : null;
+}
+
+/** Mazo local sin internet: mezcla tipos de tarjeta (concepto, completar, relación) a partir de los términos clave. */
+export function localFlashcards(topic: string, text: string): AiFlashcard[] {
+  const all = sentences(text);
+  const terms = keyTerms(text, 8);
+  const used = new Set<string>();
+  const concepts: AiFlashcard[] = [];
+  const blanks: AiFlashcard[] = [];
+  terms.forEach((t, i) => {
+    const s = all.find((x) => x.toLowerCase().includes(t) && !used.has(x));
+    if (!s) return;
+    used.add(s);
+    const other = terms[(i + 1) % terms.length];
+    if (i % 2 === 0) {
+      concepts.push({ type: "concepto", question: `¿Qué es o qué papel cumple «${cap(t)}» en ${topic}?`, answer: clip(s, 260), hint: other && other !== t ? `Relaciónalo con «${cap(other)}».` : undefined } as AiFlashcard);
+    } else {
+      blanks.push({ type: "completar", question: `Completa la idea: ${clip(s.replace(new RegExp(t, "i"), "_____"), 240)}`, answer: cap(t), hint: `Empieza por «${t[0]!.toUpperCase()}» y tiene ${t.length} letras.` });
+    }
+  });
+  const relations: AiFlashcard[] = [];
+  for (let i = 0; i + 1 < Math.min(terms.length, 6); i += 2) {
+    const a = terms[i]!, b = terms[i + 1]!;
+    const both = all.find((s) => s.toLowerCase().includes(a) && s.toLowerCase().includes(b));
+    if (both) relations.push({ type: "comparacion", question: `¿Qué relación hay entre «${cap(a)}» y «${cap(b)}»?`, answer: clip(both, 260) });
+  }
+  const mixed: AiFlashcard[] = [];
+  for (let i = 0; i < Math.max(concepts.length, blanks.length, relations.length); i++) {
+    for (const group of [concepts, blanks, relations]) if (group[i]) mixed.push(group[i]!);
+  }
+  return mixed.map((c) => (c.hint ? c : { type: c.type, question: c.question, answer: c.answer })).slice(0, 14);
+}
+
+export type StudyAiResult = { markdown?: string; map?: AiMindMap; cards?: AiFlashcard[] };
 
 export type StudyAiFailureCode = "credits" | "rate_limit" | "aborted" | "unavailable";
 
@@ -126,7 +193,12 @@ export async function requestStudyAi(kind: AiKind, notebook: string, notes: stri
     const err = (await res.json().catch(() => ({}))) as { code?: StudyAiFailureCode; error?: string };
     throw new StudyAiError(err.code ?? "unavailable", err.error ?? `study-ai ${res.status}`);
   }
-  const data = (await res.json()) as { markdown?: unknown; map?: unknown };
+  const data = (await res.json()) as { markdown?: unknown; map?: unknown; cards?: unknown };
+  if (kind === "flashcards") {
+    const cards = sanitizeFlashcards(data.cards);
+    if (!cards) throw new StudyAiError("invalid", "mazo inválido");
+    return { cards };
+  }
   if (kind === "mindmap") {
     const map = sanitizeMindMap(data.map, notebook);
     if (!map) throw new StudyAiError("invalid", "mapa inválido");
