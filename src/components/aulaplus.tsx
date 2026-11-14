@@ -47,8 +47,21 @@ import {
   Network,
   ListChecks,
   WifiOff,
+  Trash2,
 } from "lucide-react";
-import { loadState, saveState, loadAllChats, replaceAllChats, type StoredChat } from "@/lib/local-store";
+import { loadState, saveState, loadAllChats, replaceAllChats, deleteChat, type StoredChat } from "@/lib/local-store";
+import { AiSummaryView, AiNotesAssist } from "./ai-study";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { uploadBackup, type BackupPayload } from "@/lib/cloud-sync";
 import { CloudSyncPanel, useCloudUser } from "./cloud-sync-panel";
 import { Button } from "@/components/ui/button";
@@ -293,6 +306,13 @@ export function AulaPlus() {
   ];
   const navItems = role === "student" ? studentNav : teacherNav;
   const pageTitle = notebook?.name || navItems.find((n) => n.key === nav)?.label || "AulaPlus";
+  function deleteNotebook(id: string) {
+    const nb = workspace?.notebooks.find((n) => n.id === id);
+    setWorkspace((w) => ({ ...w, notebooks: w.notebooks.filter((n) => n.id !== id) }));
+    if (selected === id) setSelected(null);
+    void deleteChat(id);
+    toast.success(nb ? `Cuaderno «${nb.name}» eliminado` : "Cuaderno eliminado");
+  }
   function addNotebook(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
@@ -614,6 +634,7 @@ export function AulaPlus() {
                           notebook={n}
                           index={i}
                           open={() => setSelected(n.id)}
+                          onDelete={() => deleteNotebook(n.id)}
                         />
                       ))}
                     </div>
@@ -901,10 +922,12 @@ function NotebookCard({
   notebook: n,
   index,
   open,
+  onDelete,
 }: {
   notebook: Notebook;
   index: number;
   open: () => void;
+  onDelete: () => void;
 }) {
   const Icon = icons[index % 4] || BookOpen;
   return (
@@ -928,10 +951,33 @@ function NotebookCard({
             <Flame size={13} />
             {n.streak} días de racha
           </span>
-          <Button variant="ghost" className="open-notebook" onClick={open}>
-            Abrir cuaderno
-            <ArrowUpRight size={14} />
-          </Button>
+          <div className="notebook-actions">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="delete-notebook" aria-label={`Eliminar cuaderno ${n.name}`} title="Eliminar cuaderno">
+                  <Trash2 size={15} />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar el cuaderno «{n.name}»?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Se borrarán sus apuntes, fuentes, tareas y la conversación con Milo en este dispositivo. Esta acción no se puede deshacer.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={onDelete}>
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" className="open-notebook" onClick={open}>
+              Abrir cuaderno
+              <ArrowUpRight size={14} />
+            </Button>
+          </div>
         </div>
       </div>
     </article>
@@ -1083,17 +1129,9 @@ function NotebookView({
           ) : tab === "summary" ? (
             <div className="study-text">
               <h2>Las ideas más importantes</h2>
-              {sentences.length ? (
-                <ul className="list-disc pl-6 mt-5">
-                  {sentences.map((s, i) => (
-                    <li key={i}>{s}.</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="subtitle">
-                  Añade apuntes a este cuaderno para reunir tus ideas más importantes.
-                </p>
-              )}
+              <div className="mt-5">
+                <AiSummaryView notebook={n} update={update} />
+              </div>
               <div className="tip mt-8">
                 <h3>
                   <Lightbulb size={16} />
@@ -1122,6 +1160,15 @@ function NotebookView({
                 placeholder="Escribe aquí lo que aprendiste hoy…"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
+              />
+              <AiNotesAssist
+                notebook={n}
+                update={update}
+                onInsert={(txt) => {
+                  const next = note.trim() ? `${note}\n\n${txt}` : txt;
+                  setNote(next);
+                  update({ ...n, notes: next });
+                }}
               />
             </>
           ) : (

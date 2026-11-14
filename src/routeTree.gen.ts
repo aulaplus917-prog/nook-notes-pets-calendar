@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicStudyAiRouteImport } from './routes/api/public/study-ai'
 import { Route as ApiPublicTutorRouteImport } from './routes/api/public/tutor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicStudyAiRoute = ApiPublicStudyAiRouteImport.update({
+  id: '/api/public/study-ai',
+  path: '/api/public/study-ai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicTutorRoute = ApiPublicTutorRouteImport.update({
@@ -25,27 +31,31 @@ const ApiPublicTutorRoute = ApiPublicTutorRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/study-ai': typeof ApiPublicStudyAiRoute
   '/api/public/tutor': typeof ApiPublicTutorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/study-ai': typeof ApiPublicStudyAiRoute
   '/api/public/tutor': typeof ApiPublicTutorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/study-ai': typeof ApiPublicStudyAiRoute
   '/api/public/tutor': typeof ApiPublicTutorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/tutor'
+  fullPaths: '/' | '/api/public/study-ai' | '/api/public/tutor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/tutor'
-  id: '__root__' | '/' | '/api/public/tutor'
+  to: '/' | '/api/public/study-ai' | '/api/public/tutor'
+  id: '__root__' | '/' | '/api/public/study-ai' | '/api/public/tutor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicStudyAiRoute: typeof ApiPublicStudyAiRoute
   ApiPublicTutorRoute: typeof ApiPublicTutorRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/study-ai': {
+      id: '/api/public/study-ai'
+      path: '/api/public/study-ai'
+      fullPath: '/api/public/study-ai'
+      preLoaderRoute: typeof ApiPublicStudyAiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/tutor': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicStudyAiRoute: ApiPublicStudyAiRoute,
   ApiPublicTutorRoute: ApiPublicTutorRoute,
 }
 export const routeTree = rootRouteImport

@@ -51,6 +51,13 @@ export type StoredChat = { id: string; role: "user" | "assistant"; text: string;
 export const loadChat = async (notebookId: string) => (await readRaw<StoredChat>(CHAT_PREFIX + notebookId)) ?? [];
 export const saveChat = (notebookId: string, list: StoredChat) => writeRaw(CHAT_PREFIX + notebookId, list.slice(-80));
 
+/** Borra la conversación de un cuaderno eliminado. */
+export async function deleteChat(notebookId: string) {
+  const s = idb();
+  if (s) await del(CHAT_PREFIX + notebookId, s).catch(() => {});
+  try { localStorage.removeItem(CHAT_PREFIX + notebookId); } catch { /* ignorar */ }
+}
+
 /** Todas las conversaciones guardadas, para la copia en la nube. */
 export async function loadAllChats(): Promise<Record<string, StoredChat>> {
   const out: Record<string, StoredChat> = {};

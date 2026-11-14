@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Network, ListChecks, Table2, Volume2, Pause, Play, Check, X, ChevronDown, RotateCcw, Gauge } from "lucide-react";
+import { Network, ListChecks, Table2, Volume2, Pause, Play, Check, X, RotateCcw, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Notebook, Wallet, SessionFeeling } from "@/lib/aulaplus";
 import { sessionReward, nextReviewDays } from "@/lib/aulaplus";
-import { mindMap, makeQuiz, dataTable, summarize, sentences } from "@/lib/tutor";
+import { makeQuiz, dataTable, summarize } from "@/lib/tutor";
 import { Coins, Smile, Meh, Frown } from "lucide-react";
 import { toast } from "sonner";
 import mascot from "@/assets/pet-cloud.png";
+import { AiMindMapView } from "./ai-study";
 
 type Tool = "map" | "quiz" | "table" | "audio";
 
@@ -57,49 +58,40 @@ function AudioPlayer({ title, lines }: { title: string; lines: string[] }) {
   );
 }
 
+const tabs: { id: Tool; label: string; icon: typeof Network }[] = [
+  { id: "audio", label: "Resumen en audio", icon: Volume2 },
+  { id: "map", label: "Mapa mental", icon: Network },
+  { id: "quiz", label: "Cuestionario", icon: ListChecks },
+  { id: "table", label: "Tabla de datos", icon: Table2 },
+];
+
+function ToolSwitch({ tool, setTool }: { tool: Tool; setTool: (t: Tool) => void }) {
+  return <div className="tool-switch">
+    {tabs.map((t) => <Button key={t.id} variant={tool === t.id ? "default" : "outline"} size="sm" onClick={() => setTool(t.id)}><t.icon />{t.label}</Button>)}
+  </div>;
+}
+
 export function StudyTools({ notebook, update, wallet, onWalletChange, only }: { notebook: Notebook; update?: (n: Notebook) => void; wallet?: Wallet; onWalletChange?: (w: Wallet) => void; /** Muestra una sola herramienta como pestaña propia del cuaderno. */ only?: Tool }) {
   const studio = notebook.studio ?? {};
   const [toolState, setToolState] = useState<Tool>((studio.tool as Tool) ?? "map");
   const tool = only ?? toolState;
   const [picked, setPicked] = useState<Record<string, string>>(studio.quiz ?? {});
-  const [openBranch, setOpenBranch] = useState<string | null>(null);
   const save = (patch: Partial<NonNullable<Notebook["studio"]>>) => update?.({ ...notebook, studio: { ...studio, ...patch } });
   const setTool = (t: Tool) => { setToolState(t); save({ tool: t }); };
   const text = notebook.notes;
+  if (tool === "map")
+    return <div className="study-tools">{!only && <ToolSwitch tool={tool} setTool={setTool} />}<AiMindMapView notebook={notebook} update={update} /></div>;
   if (text.trim().length < 40)
     return <div className="tools-empty"><h3>Primero agrega fuentes o apuntes</h3><p className="text-muted-foreground">Añade un enlace o texto en Fuentes, o sube un archivo en el chat, para generar audio, mapas mentales y cuestionarios.</p></div>;
-  const map = mindMap(notebook.name, text);
   const quiz = makeQuiz(text);
   const table = dataTable(text);
   const summary = summarize(text, 5);
-  const all = sentences(text);
   const pick = (i: number, o: string) => { const next = { ...picked, [i]: o }; setPicked(next); save({ quiz: next }); };
-  const tabs: { id: Tool; label: string; icon: typeof Network }[] = [
-    { id: "audio", label: "Resumen en audio", icon: Volume2 },
-    { id: "map", label: "Mapa mental", icon: Network },
-    { id: "quiz", label: "Cuestionario", icon: ListChecks },
-    { id: "table", label: "Tabla de datos", icon: Table2 },
-  ];
   const score = quiz.filter((q, i) => picked[i] === q.answer).length;
   return (
     <div className="study-tools">
-      {!only && <div className="tool-switch">
-        {tabs.map((t) => <Button key={t.id} variant={tool === t.id ? "default" : "outline"} size="sm" onClick={() => setTool(t.id)}><t.icon />{t.label}</Button>)}
-      </div>}
+      {!only && <ToolSwitch tool={tool} setTool={setTool} />}
       {tool === "audio" && <AudioPlayer title={notebook.name} lines={summary} />}
-      {tool === "map" && <div className="mind-map">
-        <div className={`mind-center tone-${notebook.tone}`}>{map.center}</div>
-        <div className="mind-branches">{map.branches.map((b) => {
-          const isOpen = openBranch === b.label;
-          const more = all.filter((x) => x.toLowerCase().includes(b.label)).slice(0, 3);
-          return <div className={`mind-branch ${isOpen ? "open" : ""}`} key={b.label}>
-            <button type="button" className="mind-toggle" aria-expanded={isOpen} onClick={() => setOpenBranch(isOpen ? null : b.label)}>
-              <strong>{b.label}</strong><ChevronDown size={16} className={isOpen ? "rotate-180 transition" : "transition"} />
-            </button>
-            {isOpen ? <ul>{more.map((m) => <li key={m}>{m}</li>)}</ul> : <p>{b.detail.slice(0, 90)}{b.detail.length > 90 ? "…" : ""}</p>}
-          </div>;
-        })}</div>
-      </div>}
       {tool === "quiz" && <div className="quiz">
         {quiz.length === 0 && <p className="text-muted-foreground">Necesito fuentes un poco más largas para crear preguntas.</p>}
         {quiz.length > 0 && <div className="flex items-center justify-between gap-2 flex-wrap">

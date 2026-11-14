@@ -35,3 +35,5 @@
 - [x] Pestañas del cuaderno: Chat, Fuentes, Resúmenes, Flashcards, Mapa mental, Apuntes, Autoevaluación, Tareas, Estudio+
 - [x] Copia en la nube con Gmail: Guardar/Sincronizar y Descargar en otro dispositivo
 - [ ] Probar el inicio de sesión con Google y la sincronización con una cuenta real (necesita a la usuaria)
+- [x] Botón de papelera en cada tarjeta de "Mis cuadernos" con confirmación (borra también el chat del cuaderno)
+- [x] Mapa mental, Resúmenes y Apuntes asistidos generados por IA con esquemas estructurados (respaldo local sin conexión)

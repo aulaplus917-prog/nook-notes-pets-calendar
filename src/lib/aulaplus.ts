@@ -30,7 +30,7 @@ export type Notebook = {
   tasks: { id: string; title: string; done: boolean }[];
   sources?: { id: string; title: string; kind: "link" | "texto" | "archivo"; url?: string; summary?: string[]; points?: string[]; ideas?: string[] }[];
   /** Estado del Studio (se guarda con el cuaderno en localStorage). */
-  studio?: { known?: number[]; review?: number[]; quiz?: Record<string, string>; tool?: string; card?: number; rewarded?: boolean; feeling?: string; nextReview?: string };
+  studio?: { known?: number[]; review?: number[]; quiz?: Record<string, string>; tool?: string; card?: number; rewarded?: boolean; feeling?: string; nextReview?: string; ai?: import("@/lib/study-ai").AiStudio };
 };
 export type Activity = { id: string; title: string; date: string; type: string; subject: string; tone?: string };
 export const toneOptions = ["mint", "sky", "peach", "lilac", "yellow", "coral", "rose", "teal", "ocean", "lime", "sand", "grape"] as const;

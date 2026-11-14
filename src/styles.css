@@ -1631,3 +1631,22 @@ select {
   background: color-mix(in oklch, var(--color-muted-foreground) 14%, transparent);
   color: var(--color-muted-foreground);
 }
+
+/* Contenido generado por IA (mapa mental, resumen, apuntes asistidos) */
+.ai-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-bottom: 12px; }
+.ai-loading { padding: 24px 0; }
+.ai-doc { line-height: 1.6; }
+.ai-doc h1 { font-size: 22px; font-weight: 900; margin: 18px 0 8px; }
+.ai-doc h2 { font-size: 18px; font-weight: 900; margin: 20px 0 8px; color: var(--primary); }
+.ai-doc h3 { font-size: 16px; font-weight: 800; margin: 14px 0 6px; }
+.ai-doc ul { list-style: disc; padding-left: 22px; display: grid; gap: 4px; }
+.ai-doc ol { list-style: decimal; padding-left: 22px; display: grid; gap: 4px; }
+.ai-doc ul ul, .ai-doc ol ul { list-style: circle; margin-top: 4px; }
+.mind-branch.ai { border-style: solid; background: var(--card); }
+.mind-branch-title { display: flex; align-items: center; gap: 8px; text-transform: none !important; margin-bottom: 4px; }
+.mind-num { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); font-size: 12px; }
+.ai-notes { margin-top: 20px; border: 2px dashed var(--border); border-radius: 18px; padding: 16px; display: grid; gap: 12px; }
+.ai-notes h3 { display: flex; align-items: center; gap: 6px; font-weight: 900; }
+.notebook-actions { display: flex; align-items: center; gap: 4px; }
+.delete-notebook { width: 28px; height: 28px; color: var(--destructive); }
+.delete-notebook:hover { background: color-mix(in oklab, var(--destructive) 12%, transparent); color: var(--destructive); }
